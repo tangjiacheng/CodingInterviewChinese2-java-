@@ -1,8 +1,6 @@
 import utils.TreeNode;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.LinkedList;
+import java.util.*;
 
 /**
  * @Author: TJC
@@ -26,44 +24,44 @@ import java.util.LinkedList;
  *       层次遍历时, 对于中间的 null 需要保存起来, 而对于末尾的null则不保存
  */
 public class Interview37_Serialize {
-    LinkedList<TreeNode> queue = new LinkedList<>();
-    StringBuilder sb = new StringBuilder();
+
     // Encodes a tree to a single string.
     public String serialize(TreeNode root) {
-
-        if (root == null) return "";
-
+        if (root == null)
+            return "[]";
+        StringBuilder sb = new StringBuilder();
         sb.append('[');
+        LinkedList<TreeNode> queue = new LinkedList<>();
         queue.addLast(root);
+        int nullNum = 0;
         while (!queue.isEmpty()) {
-            int nullNum = 0;
             for (int i = queue.size(); i > 0; i--) {
                 TreeNode node = queue.removeFirst();
                 if (node != null) {
                     sb.append(node.val);
                     sb.append(',');
                     if (node.left != null) {
-                        addNull(nullNum);
+                        addNull(queue, nullNum);
                         nullNum = 0;
                         queue.addLast(node.left);
                     } else nullNum++;
                     if (node.right != null) {
-                        addNull(nullNum);
+                        addNull(queue, nullNum);
                         nullNum = 0;
                         queue.addLast(node.right);
                     } else nullNum++;
-                } else printNull();
+                } else printNull(sb);
             }
         }
-        sb.setCharAt(sb.length(), ']');
+        sb.setCharAt(sb.length() - 1, ']');
         return sb.toString();
     }
 
-    private void printNull() {
+    private void printNull(StringBuilder sb) {
         sb.append("null,");
     }
 
-    private void addNull(int nullNum) {
+    private void addNull(LinkedList<TreeNode> queue, int nullNum) {
         while (nullNum > 0) {
             queue.addLast(null);
             nullNum--;
@@ -72,39 +70,80 @@ public class Interview37_Serialize {
 
     // Decodes your encoded data to tree.
     public TreeNode deserialize(String data) {
-        if (data == null || data.length() == 0 || data.length() == 2) return null;
-        int index = 0;
-        LinkedList<TreeNode> queue = new LinkedList<>();
-        TreeNode root = new TreeNode(0);
-        TreeNode head = root;
-        boolean isLeft = false;
-        while (index < data.length() - 2) {
-            String next = getNext(data, index);
-            index += next.length() + 1;
-            TreeNode node;
-            if (!"null".equals(next)) {
-                node = new TreeNode(Integer.parseInt(next));
-                queue.addLast(node);
-            }else node = null;
-            if (isLeft) {
-                root.left = node;
-            }
-            else {
-                root.right = node;
-                root = queue.removeFirst();
-            }
-            isLeft = !isLeft;
-        }
-        return head.right;
+        if (data == null || data.length() < 3)
+            return null;
+        List<Integer> list = loadNums(data);
+        return bfs(list);
     }
 
-    private String getNext(String data, int index) {
-        index += 1;
-        int offset = 0;
-        while (offset + index < data.length()) {
-            if (data.charAt(index + offset) == ',' || data.charAt(index + offset) == ']') break;
-            offset++;
+    private int index = 0;
+
+    private TreeNode bfs(List<Integer> list) {
+        if (index >= list.size())
+            return null;
+        LinkedList<TreeNode> deque = new LinkedList<>();
+        TreeNode root = new TreeNode(list.get(index++));
+        deque.addLast(root);
+        while (!deque.isEmpty() && index < list.size()) {
+            TreeNode node = deque.removeFirst();
+            if (index < list.size()) {
+                Integer left = list.get(index);
+                if (left != null) {
+                    TreeNode leftSon = new TreeNode(left);
+                    node.left = leftSon;
+                    deque.addLast(leftSon);
+                }
+            }
+            index++;
+            if (index < list.size()) {
+                Integer right = list.get(index);
+                if (right != null) {
+                    TreeNode rightSon = new TreeNode(right);
+                    node.right = rightSon;
+                    deque.addLast(rightSon);
+                }
+            }
+            index++;
         }
-        return data.substring(index, index + offset);
+        return root;
+    }
+
+    private List<Integer> loadNums(String data) {
+        List<Integer> list = new ArrayList<>();
+        int index = 1;
+        while (index < data.length()) {
+            int j = index;
+            while (data.charAt(j) != ',' && data.charAt(j) != ']') {
+                j++;
+            }
+            if (j > index) {
+                if ("null".equals(data.substring(index, j))) {
+                    list.add(null);
+                } else
+                    list.add(Integer.parseInt(data.substring(index, j)));
+            }
+            index = j + 1;
+        }
+        return list;
+    }
+
+
+    private TreeNode bfs2(List<Integer> list, int index) {
+        if (index >= list.size())
+            return null;
+        Integer i = list.get(index);
+        if (i == null)
+            return null;
+        TreeNode node = new TreeNode(list.get(index));
+        node.left = bfs2(list, 2 * index + 1);
+        node.right = bfs2(list, 2 * index + 2);
+        return node;
+    }
+
+    public static void main(String[] args) {
+        Interview37_Serialize serialize = new Interview37_Serialize();
+        String data = "[5,2,3,null,null,2,4,3,1]";
+        TreeNode root = serialize.deserialize(data);
+        System.out.println(serialize.serialize(root));
     }
 }
